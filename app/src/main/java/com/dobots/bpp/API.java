@@ -81,4 +81,9 @@ public class API extends Service {
         return super.onUnbind(intent);
     }
 
+
+    //TODO: HERE you add methods within the service that can be called from the App's screen
+
+
+
 }
