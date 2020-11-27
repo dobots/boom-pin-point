@@ -82,7 +82,15 @@ public class API extends Service {
     }
 
 
-    //TODO: HERE you add methods within the service that can be called from the App's screen
+    // HERE you add methods within the service that can be called from the App's screen
+    public void HandleButtonPress() {
+        Log.d(TAG, "BUTTON PRESSED!");
+//        state;
+//        if running
+//            STOP detection thread
+//        if not running
+//            START detection thread
+    }
 
 
 
