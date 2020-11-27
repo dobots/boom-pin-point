@@ -9,6 +9,8 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.google.android.material.snackbar.Snackbar;
+
 import java.util.HashMap;
 
 public class API extends Service {
@@ -38,14 +40,14 @@ public class API extends Service {
         ServiceConnection mServiceConn = new ServiceConnection() {
             public void onServiceConnected(ComponentName className, IBinder binder) {
                 Log.w(TAG, "Service connected");
-                if (cb.isStopped()) {
+                if (!cb.isStopped()) {
                     cb.sendResult(((LocalBinder) binder).getService());
                 }
             }
 
             public void onServiceDisconnected(ComponentName className) {
                 Log.w(TAG, "Service disconnected");
-                if (cb.isStopped()) {
+                if (!cb.isStopped()) {
                     cb.sendResult(null);
                     cb.stop();
                 }
@@ -83,13 +85,28 @@ public class API extends Service {
 
 
     // HERE you add methods within the service that can be called from the App's screen
-    public void HandleButtonPress() {
+    private int detector_state = 0; // Detection is OFF Initially
+    private String next_message;
+
+    public String HandleButtonPress() {
         Log.d(TAG, "BUTTON PRESSED!");
-//        state;
-//        if running
-//            STOP detection thread
-//        if not running
-//            START detection thread
+
+        if (detector_state==0) {
+
+            //            START detection thread
+
+            detector_state=1;
+            next_message = "Stopping detection...";
+        }
+        else if (detector_state==1) {
+
+            //            STOP detection thread
+
+            detector_state=0;
+            next_message = "Starting detection...";
+        }
+
+        return next_message;
     }
 
 

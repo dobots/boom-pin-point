@@ -9,6 +9,7 @@ import com.google.android.material.snackbar.Snackbar
 class MainActivity : AppCompatActivity() {
     private val TAG = "BoomPinPoint Activity"
     private var api: API? = null
+    private var next_message = "Starting detection..."
 
     override fun onDestroy() {
         api?.unbind(this)
@@ -32,12 +33,12 @@ class MainActivity : AppCompatActivity() {
         })
 
         // HERE we add event handlers for buttons in the Screen layout
-        findViewById<Button>(R.id.button).setOnClickListener { view ->
-            Snackbar.make(view, "ToDo", Snackbar.LENGTH_LONG)
+        findViewById<Button>(R.id.button).setOnClickListener {
+            view ->
+            Snackbar.make(view, next_message, Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
 
-            api?.HandleButtonPress()
-            // Log.d(TAG, "BUTTON PRESSED!")
+            next_message = api?.HandleButtonPress().toString()
         }
 
     }
