@@ -5,10 +5,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.media.MediaRecorder;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -88,7 +90,7 @@ public class API extends Service {
 
     // HERE you add methods within the service that can be called from the App's screen
     private int active_state = 0; // Detection is OFF Initially
-    private String next_message;
+    private String next_message = null;
     //  Creating three threads:
     //  - Detection using mic
     //  - Reporting detections to server.
@@ -97,9 +99,42 @@ public class API extends Service {
     private ExecutorService reporter_executor = Executors.newSingleThreadExecutor();
     private ExecutorService triangulator_executor = Executors.newSingleThreadExecutor();
     // Creating three "Future" handlers for the threads
-    private Future detector_handle;
-    private Future reporter_handle;
-    private Future triangulator_handle;
+    private Future detector_handle = null;
+    private Future reporter_handle = null;
+    private Future triangulator_handle = null;
+
+    // Detector
+    private MediaRecorder recorder = null;
+
+    private void detector_runnable() throws InterruptedException {
+        // To Do
+//        while (true) {
+//            Thread.sleep(1 * 1000);
+//        }
+            Log.d(TAG, "Detecting..........");
+            recorder = new MediaRecorder();
+            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+            // Set file path
+            recorder.setOutputFile(getExternalCacheDir().getAbsolutePath()+"/audiorecordtest.3gp");
+            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+            try {
+                recorder.prepare();
+            } catch (IOException e) {
+                Log.e(TAG, "MediaRecorder prepare() failed");
+            }
+
+            recorder.start();
+    }
+
+    private void reporter_runnable(){
+        // To Do
+    }
+
+    private void triangulator_runnable(){
+        // To Do
+    }
 
 
     public String HandleButtonPress() {
@@ -123,28 +158,16 @@ public class API extends Service {
             active_state=0;
 
             // STOP detection thread
+            recorder.stop();
+            recorder.reset();    // set state to idle
+            recorder.release();
+            recorder = null;
             detector_handle.cancel(true);
 
             next_message = "Starting detection...";
         }
 
         return next_message;
-    }
-
-    private void detector_runnable() throws InterruptedException {
-        // To Do
-        while (true) {
-            Log.d(TAG, "Detecting..........");
-            Thread.sleep(1 * 1000);
-        }
-    }
-
-    private void reporter_runnable(){
-        // To Do
-    }
-
-    private void triangulator_runnable(){
-        // To Do
     }
 
 }
