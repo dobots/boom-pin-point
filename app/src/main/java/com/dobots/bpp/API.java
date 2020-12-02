@@ -114,10 +114,12 @@ public class API extends Service {
             Log.d(TAG, "Detecting..........");
             recorder = new MediaRecorder();
             recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+            recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
+            recorder.setAudioEncodingBitRate(16*44100); // For HQ audio
+            recorder.setAudioSamplingRate(44100);
             // Set file path
-            recorder.setOutputFile(getExternalCacheDir().getAbsolutePath()+"/audiorecordtest.3gp");
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+            recorder.setOutputFile(getExternalCacheDir().getAbsolutePath()+"/audiorecordtest.aac");
+            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
             try {
                 recorder.prepare();
@@ -126,6 +128,14 @@ public class API extends Service {
             }
 
             recorder.start();
+    }
+
+    private void detector_release() {
+            recorder.stop();
+            recorder.reset();    // set state to idle
+            recorder.release();
+            recorder = null;
+            detector_handle.cancel(true);
     }
 
     private void reporter_runnable(){
@@ -158,11 +168,7 @@ public class API extends Service {
             active_state=0;
 
             // STOP detection thread
-            recorder.stop();
-            recorder.reset();    // set state to idle
-            recorder.release();
-            recorder = null;
-            detector_handle.cancel(true);
+            detector_release();
 
             next_message = "Starting detection...";
         }
