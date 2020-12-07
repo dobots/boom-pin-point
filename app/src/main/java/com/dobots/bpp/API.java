@@ -1,16 +1,29 @@
 package com.dobots.bpp;
 
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.location.Location;
 import android.media.MediaRecorder;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -19,10 +32,41 @@ import java.util.concurrent.Future;
 
 public class API extends Service {
     private final static String TAG = "BoomPinPoint API";
+    // Location Management
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationRequest locationRequest;
+    private LocationCallback locationCallback;
+    // Current Location variable
+    private Location current_location = null;
 
+    @SuppressLint("MissingPermission")
     @Override
     public void onCreate() {
         Log.w(TAG, "Service created.(" + Thread.currentThread().getName() + ")");
+        // Create Location Manager
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        // Create Location Request
+        locationRequest = LocationRequest.create();
+        locationRequest.setInterval(10000);
+        locationRequest.setFastestInterval(5000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        // Create Location Callback
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                for (Location location : locationResult.getLocations()) {
+                    // Update variable
+                    current_location = location;
+                }
+            }
+        };
+        // Request location updates
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+                locationCallback,
+                Looper.getMainLooper());
     }
 
     @Override
@@ -90,6 +134,7 @@ public class API extends Service {
 
     // HERE you add methods within the service that can be called from the App's screen
     private int active_state = 0; // Detection is OFF Initially
+    private long date_time;
     private String next_message = null;
     //  Creating three threads:
     //  - Detection using mic
@@ -105,37 +150,68 @@ public class API extends Service {
 
     // Detector
     private MediaRecorder recorder = null;
+    // GPS Logging
+    private int log_time_interval_ms = 250;
 
-    private void detector_runnable() throws InterruptedException {
-        // To Do
-//        while (true) {
-//            Thread.sleep(1 * 1000);
-//        }
-            Log.d(TAG, "Detecting..........");
-            recorder = new MediaRecorder();
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
-            recorder.setAudioEncodingBitRate(16*44100); // For HQ audio
-            recorder.setAudioSamplingRate(44100);
-            // Set file path
-            recorder.setOutputFile(getExternalCacheDir().getAbsolutePath()+"/audiorecordtest.aac");
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+    @SuppressLint("MissingPermission")
+    private void detector_runnable() throws InterruptedException, IOException {
 
-            try {
-                recorder.prepare();
-            } catch (IOException e) {
-                Log.e(TAG, "MediaRecorder prepare() failed");
-            }
+        Log.d(TAG, "Detecting..........");
+        recorder = new MediaRecorder();
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS);
+        recorder.setAudioEncodingBitRate(16*44100); // For HQ audio
+        recorder.setAudioSamplingRate(44100);
+        // Set file path
+        recorder.setOutputFile(getExternalCacheDir().getAbsolutePath()+"/"+date_time+".aac");
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
 
-            recorder.start();
+        try {
+            recorder.prepare();
+        } catch (IOException e) {
+            Log.e(TAG, "MediaRecorder prepare() failed");
+        }
+
+        recorder.start();
+
+        // Request location updates
+        fusedLocationClient.requestLocationUpdates(locationRequest,
+                locationCallback,
+                Looper.getMainLooper());
+
+        // Log location data in a CSV
+        FileOutputStream log_stream = new FileOutputStream(getExternalCacheDir().getAbsolutePath()+"/"+date_time+".csv", true);
+        OutputStreamWriter log_writer = new OutputStreamWriter(log_stream);
+        String log_entry = "Time_ms,Latitude,Longitude,Altitude" + "\n";
+        log_writer.append(log_entry);
+        log_writer.flush();
+        log_stream.flush();
+
+        while (true) {
+            Log.d(TAG, "Time_ms: "+ String.valueOf(System.currentTimeMillis()));
+            Log.d(TAG, "Latitude: "+ String.valueOf(current_location.getLatitude()));
+            Log.d(TAG, "Longitude: "+ String.valueOf(current_location.getLongitude()));
+            Log.d(TAG, "Altitude: "+ String.valueOf(current_location.getAltitude()));
+
+            log_entry = String.valueOf(System.currentTimeMillis())+","+String.valueOf(current_location.getLatitude())+","+String.valueOf(current_location.getLongitude())+","+String.valueOf(current_location.getAltitude()) + "\n";
+            log_writer.append(log_entry);
+            log_writer.flush();
+            log_stream.flush();
+
+            Thread.sleep(log_time_interval_ms);
+        }
+
     }
 
     private void detector_release() {
-            recorder.stop();
-            recorder.reset();    // set state to idle
-            recorder.release();
-            recorder = null;
-            detector_handle.cancel(true);
+        recorder.stop();
+        recorder.reset();    // set state to idle
+        recorder.release();
+        recorder = null;
+
+        fusedLocationClient.removeLocationUpdates(locationCallback);
+
+        detector_handle.cancel(true);
     }
 
     private void reporter_runnable(){
@@ -152,7 +228,7 @@ public class API extends Service {
 
         if (active_state==0) {
             active_state=1;
-
+            date_time = System.currentTimeMillis();
             // START detection thread
             detector_handle = detector_executor.submit(new Callable(){
                 @Override

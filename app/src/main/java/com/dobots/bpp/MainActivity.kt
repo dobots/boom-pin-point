@@ -1,22 +1,22 @@
 package com.dobots.bpp
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.snackbar.Snackbar
-import android.Manifest
-import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import com.google.android.material.snackbar.Snackbar
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "BoomPinPoint Activity"
     private var api: API? = null
     private var next_message = "Starting detection..."
 
-    // Requesting permission to RECORD_AUDIO
+    // Requesting permission to RECORD_AUDIO and ACCESS_LOCATION
     private var permissionToRecordAccepted = false
-    private var permissions: Array<String> = arrayOf(Manifest.permission.RECORD_AUDIO)
+    private var mic_and_location_permissions = arrayOf<String>(Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
 
     override fun onRequestPermissionsResult(
             requestCode: Int,
@@ -24,12 +24,16 @@ class MainActivity : AppCompatActivity() {
             grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        permissionToRecordAccepted = if (requestCode == 200) {
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-        } else {
-            false
+
+        when (requestCode) {
+            // Microphone and location
+            100 -> {
+                // If permission granted continue, else exit
+                permissionToRecordAccepted = grantResults[0] === PackageManager.PERMISSION_GRANTED
+                if (!permissionToRecordAccepted) finish()
+            }
         }
-        if (!permissionToRecordAccepted) finish()
+
     }
 
     override fun onDestroy() {
@@ -41,8 +45,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Request permission for microphone
-        ActivityCompat.requestPermissions(this, permissions, 200)
+        // Request permission for microphone and location
+        ActivityCompat.requestPermissions(this, mic_and_location_permissions, 100)
 
         API.bind(this, object : Callback<API>() {
             override fun onResult(result: API?) {
